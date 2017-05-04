@@ -1,0 +1,69 @@
+{
+    "AWSTemplateFormatVersion": "2010-09-09",
+    "Parameters":{
+            "UserPoolName":{
+                "Type":"String",
+                "Description":"Cognito user pool name",
+                "Default":"CognitoUserPool"
+            },
+            "CognitoUserLambda":{
+                "Type":"String"
+            },
+            "phone_number":{
+                "Type":"String",
+                "Description":"User's phone number"
+            },
+            "email":{
+                "Type":"String",
+                "Description":"User's email"
+            },
+            "Username":{
+                "Type":"String",
+                "Description":"Username"
+            }
+
+        },
+    "Resources": {
+        "IAMRNOJV": {
+            "Type": "AWS::IAM::Role",
+            "Properties": {
+                        "ManagedPolicyArns": [ "arn:aws:iam::aws:policy/AmazonSNSFullAccess" ],
+                        "Path": "/",
+                        "RoleName": "CognitoSMSRule"
+            }
+        },
+        "COGNITOPOOL":{
+          "Type" : "AWS::Cognito::UserPool",
+          "Properties" : {
+            "AliasAttributes" : [ "phone_number", "email" ],
+            "AutoVerifiedAttributes" : [ "phone_number", "email" ],
+            "LambdaConfig" : {
+                          "PostAuthentication" : {"Ref":"CognitoUserLambda"}
+                        },
+            "MfaConfiguration" : "OPTIONAL",
+            "UserPoolName" : {"Ref":"UserPoolName"},
+            "SmsConfiguration" : {
+                  "SnsCallerArn" : { "Fn::GetAtt" : [ "IAMRNOJV", "Arn" ] }
+                },
+          },
+          "Depends_on": ["IAMRNOJV"]
+        },
+        "COGNITOUSER":{
+          "Type" : "AWS::Cognito::UserPoolUser",
+          "Properties" : {
+          "DesiredDeliveryMediums" : [ "SMS", "EMAIL" ],
+          "UserAttributes" : [ {
+                      "Name" : "phone_number",
+                      "Value" : {"Ref":"phone_number"}
+                    },
+                    {
+                      "Name" : "email",
+                      "Value" : {"Ref":"email"}
+                    }],
+          "Username" : {"Ref":"Username"},
+          "UserPoolId" : {"Ref":"COGNITOPOOL"},
+          },
+          "Depends_on": ["IAMRNOJV","COGNITOPOOL"]
+        }
+    }
+}
